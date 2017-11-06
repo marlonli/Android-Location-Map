@@ -3,6 +3,13 @@
     android:orientation="vertical" android:layout_width="match_parent"
     android:layout_height="match_parent">
 
+    <TextView
+        android:id="@+id/lv_name"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="name"
+        android:textSize="17sp"
+        android:textColor="#0a0a0a" />
 
     <LinearLayout
         android:layout_width="match_parent"
@@ -15,8 +22,8 @@
             android:layout_height="match_parent"
             android:text="Lat, Lng"
             android:layout_weight="0.5"
-            android:textSize="17sp"
-            android:textColor="#3a3a3a"/>
+            android:textSize="15sp"
+            android:textColor="#4a4a4a"/>
 
         <TextView
             android:gravity="right"
@@ -25,8 +32,8 @@
             android:layout_width="wrap_content"
             android:layout_height="match_parent"
             android:layout_weight="0.5"
-            android:textSize="17sp"
-            android:textColor="#3a3a3a"/>
+            android:textSize="15sp"
+            android:textColor="#4a4a4a"/>
 
     </LinearLayout>
 
@@ -36,6 +43,6 @@
         android:layout_height="wrap_content"
         android:text="address"
         android:textSize="15sp"
-        />
+        android:textColor="#4a4a4a" />
 
 </LinearLayout>

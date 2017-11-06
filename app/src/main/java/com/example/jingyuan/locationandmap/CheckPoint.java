@@ -7,12 +7,31 @@ import java.io.Serializable;
  */
 
 public class CheckPoint implements Serializable{
+    private int _id;
+    private String name;
     private String lat;
     private String lng;
     private String time;
     private String address;
 
-    public CheckPoint(String lat, String lng, String time, String address) {
+    public int getId() {
+        return _id;
+    }
+
+    public void setId(int id) {
+        this._id = id;
+    }
+
+    public CheckPoint(int id, String name, String lat, String lng, String time, String address) {
+        this._id = id;
+        this.name = name;
+        this.lat = lat;
+        this.lng = lng;
+        this.time = time;
+        this.address = address;
+    }
+    public CheckPoint(String name, String lat, String lng, String time, String address) {
+        this.name = name;
         this.lat = lat;
         this.lng = lng;
         this.time = time;
@@ -22,6 +41,14 @@ public class CheckPoint implements Serializable{
     public String getLat() {
 
         return lat;
+    }
+
+    public String getName() {
+        return name;
+    }
+
+    public void setName(String name) {
+        this.name = name;
     }
 
     public void setLat(String lat) {

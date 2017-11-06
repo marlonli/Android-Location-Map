@@ -52,11 +52,13 @@ public class mAdapter extends BaseAdapter {
         TextView coordination = (TextView) view.findViewById(R.id.lv_location);
         TextView time = (TextView) view.findViewById(R.id.lv_time);
         TextView addr = (TextView) view.findViewById(R.id.lv_address);
+        TextView name = (TextView) view.findViewById(R.id.lv_name);
         final CheckPoint listitem = list.get(i);
 
         coordination.setText(listitem.getLat() + ", " + listitem.getLng());
         time.setText(listitem.getTime());
         addr.setText(listitem.getAddress());
+        name.setText(listitem.getName());
 
         return view;
     }

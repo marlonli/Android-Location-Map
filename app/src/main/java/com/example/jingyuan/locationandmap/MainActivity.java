@@ -4,12 +4,15 @@ import android.Manifest;
 import android.content.Context;
 import android.content.Intent;
 import android.content.pm.PackageManager;
+import android.database.sqlite.SQLiteDatabase;
+import android.database.sqlite.SQLiteOpenHelper;
 import android.location.Address;
 import android.location.Geocoder;
 import android.location.Location;
 import android.location.LocationListener;
 import android.location.LocationManager;
 import android.location.LocationProvider;
+import android.provider.ContactsContract;
 import android.provider.Settings;
 import android.support.annotation.NonNull;
 import android.support.v4.app.ActivityCompat;
@@ -18,7 +21,9 @@ import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
 import android.util.Log;
 import android.view.View;
+import android.widget.AdapterView;
 import android.widget.Button;
+import android.widget.EditText;
 import android.widget.ListView;
 import android.widget.TextView;
 import android.widget.Toast;
@@ -33,21 +38,30 @@ import java.util.List;
 public class MainActivity extends AppCompatActivity {
 
     private final int LOC_PERMISSION_REQUEST_CODE = 1;
-    private final int FINE_LOC_PERMISSION_REQUEST_CODE = 2;
     private TextView locationTV;
     private TextView addressTV;
     private LocationManager locationManager;
     private Button checkIn;
     private LocationListener locationListener;
     private ListView listView;
+    private EditText nameET;
     private List<CheckPoint> list;
     private mAdapter adapter;
+    private DatabaseHelper dbHelper;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
         initialization();
+        Log.v("activity status", "on create");
+
+    }
+
+    @Override
+    protected void onResume() {
+        super.onResume();
+
     }
 
     @Override
@@ -60,13 +74,19 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void initialization() {
+
         // Initialization
         locationTV = (TextView) findViewById(R.id.tv_position);
         addressTV = (TextView) findViewById(R.id.tv_address);
+        nameET = (EditText) findViewById(R.id.et_name);
         listView = (ListView) findViewById(R.id.lv_checkins);
+
         list = new ArrayList<>();
-        checkIn = (Button) findViewById(R.id.button);
-        list.add(new CheckPoint("30", "120", "12:12:12", "400 Plymouth Place, Somerset, New Jersey 08873"));
+        dbHelper = new DatabaseHelper(this);
+        checkIn = (Button) findViewById(R.id.button_checkin);
+        list.addAll(dbHelper.getAllPoints());
+//        list.add(new CheckPoint("30", "120", "12:12:12", "400 Plymouth Place, Somerset, New Jersey 08873"));
+
         adapter = new mAdapter(this, list);
         listView.setAdapter(adapter);
 
@@ -97,33 +117,45 @@ public class MainActivity extends AppCompatActivity {
         checkIn.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View view) {
-//                if ( (ContextCompat.checkSelfPermission( MainActivity.this, android.Manifest.permission.ACCESS_COARSE_LOCATION ) == PackageManager.PERMISSION_GRANTED) &&
-//                        (ContextCompat.checkSelfPermission( MainActivity.this, android.Manifest.permission.ACCESS_FINE_LOCATION ) == PackageManager.PERMISSION_GRANTED)) {
-//
-//                    if (locationManager.isProviderEnabled(LocationManager.NETWORK_PROVIDER) || locationManager.isProviderEnabled(LocationManager.GPS_PROVIDER)) {
-//                        String lp = LocationManager.GPS_PROVIDER;
-//                        Location loc = locationManager.getLastKnownLocation(LocationManager.GPS_PROVIDER);
-//                        // fall back to network if GPS is not available
-//                        if (loc == null) {
-//                            loc = locationManager.getLastKnownLocation(LocationManager.NETWORK_PROVIDER);
-//                            lp = LocationManager.NETWORK_PROVIDER;
-//                        }
-//                        if (loc != null) {
-//                            showLocation(loc);
-//                        }
-//                    }
-//                }
                 String[] coor = locationTV.getText().toString().split(",");
                 DateFormat dateFormat = new SimpleDateFormat("HH:mm:ss MM/dd/yyyy");
                 Date date = new Date();
 
-                CheckPoint cp = new CheckPoint(coor[0].replace("Current Location: (", ""),
-                        coor[1].replace(")", ""), dateFormat.format(date), addressTV.getText().toString().replace("Current Address: ", ""));
-                list.add(cp);
-                adapter.notifyDataSetChanged();
+                CheckPoint cp = new CheckPoint(nameET.getText().toString(),
+                        coor[0].replace("Current Location: (", ""),
+                        coor[1].replace(")", ""),
+                        dateFormat.format(date),
+                        addressTV.getText().toString().replace("Current Address: ", ""));
+
+                Log.v("event status", "check in clicked " + dateFormat.format(date));
+                ArrayList<CheckPoint> neighbors = compareDist(cp);
+                if (neighbors == null || neighbors.size() == 0) { // if no check in point which dist < 30m to cp
+                    // add new check in point to database, refresh the list
+                    dbHelper.addPoint(cp);
+                    list.clear();
+                    list.addAll(dbHelper.getAllPoints());
+                    adapter.notifyDataSetChanged();
+                } else { // if there is a check in point near cp (dist < 30m)
+                    dbHelper.addAssociate(cp, neighbors);
+                    Toast.makeText(MainActivity.this, "Associated to other points", Toast.LENGTH_SHORT).show();
+
+
+                }
+
             }
         });
 
+        listView.setOnItemLongClickListener(new AdapterView.OnItemLongClickListener() {
+            @Override
+            public boolean onItemLongClick(AdapterView<?> adapterView, View view, int i, long l) {
+
+                dbHelper.deletePoint(list.get(i).getId());
+                list.clear();
+                list.addAll(dbHelper.getAllPoints());
+                adapter.notifyDataSetChanged();
+                return true;
+            }
+        });
 
         // Get permission
         if ( (ContextCompat.checkSelfPermission( this, android.Manifest.permission.ACCESS_COARSE_LOCATION ) != PackageManager.PERMISSION_GRANTED) || (
@@ -137,8 +169,16 @@ public class MainActivity extends AppCompatActivity {
         } else {
             updateLocation();
         }
+    }
 
-        locationManager.requestLocationUpdates(LocationManager.GPS_PROVIDER, 1000, 1, locationListener);
+    // return the position of check in point which dist < 30m
+    private ArrayList<CheckPoint> compareDist(CheckPoint cp) {
+        ArrayList<CheckPoint> neighbors = new ArrayList<>();
+        for (int i = 0; i < list.size(); i++)
+            if (distance(Double.valueOf(cp.getLat()), Double.valueOf(cp.getLng()), Double.valueOf(list.get(i).getLat()), Double.valueOf(list.get(i).getLng())) < 30)
+                neighbors.add(list.get(i));
+
+        return neighbors;
     }
 
     @Override
@@ -163,28 +203,34 @@ public class MainActivity extends AppCompatActivity {
         double myLat = location.getLatitude();
         double myLng = location.getLongitude();
         // transfer to String
-        String lat = String.format("%.3f", myLat);
-        String lng = String.format("%.3f", myLng);
+        String lat = String.format("%.6f", myLat);
+        String lng = String.format("%.6f", myLng);
         // Show coordinates
         locationTV.setText("Current Location: (" + lat + "," + lng + ")");
+        Log.v("location status", "show lat, lng");
         Geocoder geocoder = new Geocoder(this);
+        List<Address> addresses = new ArrayList<>();
         // Get and show address
         try {
-            List<Address> addresses = geocoder.getFromLocation(myLat, myLng, 1);
-            if (addresses.size()!= 0) {
-                Address address = addresses.get(0);
-                StringBuilder sb = new StringBuilder();
-                if (address.getSubThoroughfare() != null) sb.append(address.getSubThoroughfare()).append(", ");
-                if (address.getThoroughfare() != null) sb.append(address.getThoroughfare()).append(", ");
-                if (address.getLocality() != null) sb.append(address.getLocality()).append(", ");
-                if (address.getAdminArea() != null) sb.append(address.getAdminArea()).append(" ");
-                if (address.getPostalCode() != null) sb.append(address.getPostalCode());
-                addressTV.setText("Current Address: " + sb.toString());
-            }
+
+            addresses.addAll(geocoder.getFromLocation(myLat, myLng, 1));
+
         } catch (IOException e) {
             e.printStackTrace();
         }
 
+        if (addresses!= null && addresses.size() != 0) {
+            Log.v("location status", "show address");
+            Address address = addresses.get(0);
+            StringBuilder sb = new StringBuilder();
+            if (address.getSubThoroughfare() != null) sb.append(address.getSubThoroughfare()).append(", ");
+            if (address.getThoroughfare() != null) sb.append(address.getThoroughfare()).append(", ");
+            if (address.getLocality() != null) sb.append(address.getLocality()).append(", ");
+            if (address.getAdminArea() != null) sb.append(address.getAdminArea()).append(" ");
+            if (address.getPostalCode() != null) sb.append(address.getPostalCode());
+            addressTV.setText("Current Address: " + sb.toString());
+
+        }
     }
 
     private void updateLocation() {
@@ -203,6 +249,7 @@ public class MainActivity extends AppCompatActivity {
                 if (loc != null) {
                     showLocation(loc);
                 }
+                locationManager.requestLocationUpdates(LocationManager.GPS_PROVIDER, 1000, 1, locationListener);
 //                else {
 //                    locationManager.requestLocationUpdates(lp, 3000, 1, locationListener);
 //                    showLocation(loc);
@@ -219,5 +266,21 @@ public class MainActivity extends AppCompatActivity {
             Toast.makeText(this, "Permission Denied!", Toast.LENGTH_SHORT);
         }
 
+    }
+
+    private double distance(double lat1, double lng1, double lat2, double lng2) {
+        double a, b, R;
+        R = 6378137; // Radius of earth
+        lat1 = lat1 * Math.PI / 180.0;
+        lat2 = lat2 * Math.PI / 180.0;
+        a = lat1 - lat2;
+        b = (lng1 - lng2) * Math.PI / 180.0;
+        double d;
+        double sa2, sb2;
+        sa2 = Math.sin(a / 2.0);
+        sb2 = Math.sin(b / 2.0);
+        d = 2 * R * Math.asin(Math.sqrt(sa2 * sa2 + Math.cos(lat1)
+                * Math.cos(lat2) * sb2 * sb2));
+        return d;
     }
 }
