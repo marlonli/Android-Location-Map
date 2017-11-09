@@ -42,6 +42,7 @@ public class MainActivity extends AppCompatActivity {
     private TextView addressTV;
     private LocationManager locationManager;
     private Button checkIn;
+    private Button mapBtn;
     private LocationListener locationListener;
     private ListView listView;
     private EditText nameET;
@@ -80,6 +81,7 @@ public class MainActivity extends AppCompatActivity {
         addressTV = (TextView) findViewById(R.id.tv_address);
         nameET = (EditText) findViewById(R.id.et_name);
         listView = (ListView) findViewById(R.id.lv_checkins);
+        mapBtn = (Button) findViewById(R.id.button_map);
 
         list = new ArrayList<>();
         dbHelper = new DatabaseHelper(this);
@@ -95,6 +97,7 @@ public class MainActivity extends AppCompatActivity {
         locationListener = new LocationListener() {
             @Override
             public void onLocationChanged(Location location) {
+                Log.v("location status", "on location changed");
                 showLocation(location);
             }
 
@@ -138,8 +141,6 @@ public class MainActivity extends AppCompatActivity {
                 } else { // if there is a check in point near cp (dist < 30m)
                     dbHelper.addAssociate(cp, neighbors);
                     Toast.makeText(MainActivity.this, "Associated to other points", Toast.LENGTH_SHORT).show();
-
-
                 }
 
             }
@@ -169,6 +170,14 @@ public class MainActivity extends AppCompatActivity {
         } else {
             updateLocation();
         }
+
+        mapBtn.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View view) {
+                Intent intent = new Intent(MainActivity.this, MapsActivity.class);
+                startActivity(intent);
+            }
+        });
     }
 
     // return the position of check in point which dist < 30m
@@ -233,7 +242,7 @@ public class MainActivity extends AppCompatActivity {
         }
     }
 
-    private void updateLocation() {
+    public void updateLocation() {
         // Check permission
         if ( (ContextCompat.checkSelfPermission( this, android.Manifest.permission.ACCESS_COARSE_LOCATION ) == PackageManager.PERMISSION_GRANTED) &&
                 (ContextCompat.checkSelfPermission( this, android.Manifest.permission.ACCESS_FINE_LOCATION ) == PackageManager.PERMISSION_GRANTED)) {
@@ -249,7 +258,7 @@ public class MainActivity extends AppCompatActivity {
                 if (loc != null) {
                     showLocation(loc);
                 }
-                locationManager.requestLocationUpdates(LocationManager.GPS_PROVIDER, 1000, 1, locationListener);
+                locationManager.requestLocationUpdates(LocationManager.GPS_PROVIDER, 6000, 1, locationListener);
 //                else {
 //                    locationManager.requestLocationUpdates(lp, 3000, 1, locationListener);
 //                    showLocation(loc);

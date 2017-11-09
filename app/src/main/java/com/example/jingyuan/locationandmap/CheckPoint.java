@@ -30,12 +30,21 @@ public class CheckPoint implements Serializable{
         this.time = time;
         this.address = address;
     }
+
     public CheckPoint(String name, String lat, String lng, String time, String address) {
         this.name = name;
         this.lat = lat;
         this.lng = lng;
         this.time = time;
         this.address = address;
+    }
+
+    public CheckPoint(String name, String lat, String lng, String time) {
+        this.name = name;
+        this.lat = lat;
+        this.lng = lng;
+        this.time = time;
+        this.address = "";
     }
 
     public String getLat() {

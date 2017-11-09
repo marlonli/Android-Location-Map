@@ -8,6 +8,8 @@ import android.database.sqlite.SQLiteOpenHelper;
 import android.util.Log;
 import android.widget.ArrayAdapter;
 
+import com.google.android.gms.maps.model.LatLng;
+
 import java.util.ArrayList;
 
 /**
@@ -17,6 +19,7 @@ import java.util.ArrayList;
 public class DatabaseHelper extends SQLiteOpenHelper {
     private static final String DATABASE = "checkins";
     private static final String ASSOCIATE_DATABASE = "associates";
+    private static final String MARKER_DATABASE = "markers";
     private static final String KEY_NAME = "name";
     private static final String KEY_LAT = "latitude";
     private static final String KEY_LNG = "longitude";
@@ -32,11 +35,14 @@ public class DatabaseHelper extends SQLiteOpenHelper {
     @Override
     public void onCreate(SQLiteDatabase sqLiteDatabase) {
         String createTable = "CREATE TABLE "+ DATABASE +" (_id INTEGER PRIMARY KEY AUTOINCREMENT, " + KEY_LAT + " TEXT, "+
-                KEY_LNG +" TEXT, "+ KEY_TIME +" TEXT, "+ KEY_ADDRESS +" TEXT, " + KEY_NAME + ")";
+                KEY_LNG +" TEXT, "+ KEY_TIME +" TEXT, "+ KEY_ADDRESS +" TEXT, " + KEY_NAME + " TEXT)";
         String createAssociate = "CREATE TABLE " + ASSOCIATE_DATABASE + " (assID INTEGER PRIMARY KEY AUTOINCREMENT, " +
-                KEY_CHECKINID + " TEXT, " + KEY_LAT + " TEXT, " + KEY_LNG + " TEXT, " + KEY_TIME + ")";
+                KEY_CHECKINID + " TEXT, " + KEY_LAT + " TEXT, " + KEY_LNG + " TEXT, " + KEY_TIME + " TEXT)";
+        String createMarkers = "CREATE TABLE " + MARKER_DATABASE + " (markerID INTEGER PRIMARY KEY AUTOINCREMENT, " +
+                " TEXT, " + KEY_LAT + " TEXT, " + KEY_LNG + " TEXT, " + KEY_TIME + " TEXT, " + KEY_NAME + " TEXT)";
         sqLiteDatabase.execSQL(createTable);
         sqLiteDatabase.execSQL(createAssociate);
+        sqLiteDatabase.execSQL(createMarkers);
         Log.v("database status", "on create");
     }
 
@@ -70,7 +76,6 @@ public class DatabaseHelper extends SQLiteOpenHelper {
         SQLiteDatabase db = this.getReadableDatabase();
         ArrayList<CheckPoint> result = new ArrayList<>();
 
-
         Cursor cursor = db.query(DATABASE,null,null,null,null,null,null);
         Log.v("database status", "get all " + cursor.getCount());
         while (cursor.moveToNext())
@@ -83,7 +88,6 @@ public class DatabaseHelper extends SQLiteOpenHelper {
             String name = cursor.getString(5);
             CheckPoint point = new CheckPoint(id, name, lat, lng, time, addr);
             result.add(point);
-            Log.v("database status", "result ids " + point.getId());
         }
 
         return result;
@@ -102,5 +106,34 @@ public class DatabaseHelper extends SQLiteOpenHelper {
         values.put(KEY_CHECKINID, ids);
         db.insert(ASSOCIATE_DATABASE, null, values);
         db.close();
+    }
+
+    public void addMarker(String lat, String lng, String time, String name) {
+        Log.v("database status", "add marker");
+        SQLiteDatabase db = this.getWritableDatabase();
+        ContentValues values = new ContentValues();
+        values.put(KEY_LAT, lat);
+        values.put(KEY_LNG, lng);
+        values.put(KEY_TIME, time);
+        values.put(KEY_NAME, name);
+        db.insert(MARKER_DATABASE, null, values);
+        db.close();
+    }
+
+    public ArrayList<CheckPoint> getAllMarkers() {
+        SQLiteDatabase db = this.getReadableDatabase();
+        ArrayList<CheckPoint> result = new ArrayList<>();
+
+        Cursor cursor = db.query(MARKER_DATABASE, null, null, null, null, null, null);
+        Log.v("database status", "get all markers");
+        while (cursor.moveToNext()) {
+            String lat = cursor.getString(1);
+            String lng = cursor.getString(2);
+            String time = cursor.getString(3);
+            String name = cursor.getString(4);
+            CheckPoint marker = new CheckPoint(name, lat, lng, time);
+            result.add(marker);
+        }
+        return result;
     }
 }
