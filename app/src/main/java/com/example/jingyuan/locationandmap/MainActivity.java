@@ -62,7 +62,11 @@ public class MainActivity extends AppCompatActivity {
     @Override
     protected void onResume() {
         super.onResume();
-
+        Log.v("activity status", "on resume");
+//        // Refresh list
+//        list.clear();
+//        list = dbHelper.getAllPoints();
+//        adapter.notifyDataSetChanged();
     }
 
     @Override
@@ -258,7 +262,7 @@ public class MainActivity extends AppCompatActivity {
                 if (loc != null) {
                     showLocation(loc);
                 }
-                locationManager.requestLocationUpdates(LocationManager.GPS_PROVIDER, 6000, 1, locationListener);
+                locationManager.requestLocationUpdates(LocationManager.GPS_PROVIDER, 300000, 100, locationListener);
 //                else {
 //                    locationManager.requestLocationUpdates(lp, 3000, 1, locationListener);
 //                    showLocation(loc);
@@ -277,7 +281,7 @@ public class MainActivity extends AppCompatActivity {
 
     }
 
-    private double distance(double lat1, double lng1, double lat2, double lng2) {
+    public static double distance(double lat1, double lng1, double lat2, double lng2) {
         double a, b, R;
         R = 6378137; // Radius of earth
         lat1 = lat1 * Math.PI / 180.0;

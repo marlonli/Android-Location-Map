@@ -39,7 +39,7 @@ public class DatabaseHelper extends SQLiteOpenHelper {
         String createAssociate = "CREATE TABLE " + ASSOCIATE_DATABASE + " (assID INTEGER PRIMARY KEY AUTOINCREMENT, " +
                 KEY_CHECKINID + " TEXT, " + KEY_LAT + " TEXT, " + KEY_LNG + " TEXT, " + KEY_TIME + " TEXT)";
         String createMarkers = "CREATE TABLE " + MARKER_DATABASE + " (markerID INTEGER PRIMARY KEY AUTOINCREMENT, " +
-                " TEXT, " + KEY_LAT + " TEXT, " + KEY_LNG + " TEXT, " + KEY_TIME + " TEXT, " + KEY_NAME + " TEXT)";
+                KEY_LAT + " TEXT, " + KEY_LNG + " TEXT, " + KEY_TIME + " TEXT, " + KEY_NAME + " TEXT)";
         sqLiteDatabase.execSQL(createTable);
         sqLiteDatabase.execSQL(createAssociate);
         sqLiteDatabase.execSQL(createMarkers);
@@ -70,6 +70,7 @@ public class DatabaseHelper extends SQLiteOpenHelper {
     public void deletePoint(int id) {
         SQLiteDatabase db = this.getWritableDatabase();
         db.execSQL(DELETE_QUERY + id);
+        db.close();
     }
 
     public ArrayList<CheckPoint> getAllPoints() {
@@ -77,19 +78,25 @@ public class DatabaseHelper extends SQLiteOpenHelper {
         ArrayList<CheckPoint> result = new ArrayList<>();
 
         Cursor cursor = db.query(DATABASE,null,null,null,null,null,null);
-        Log.v("database status", "get all " + cursor.getCount());
+        Log.v("database status", "get all points" + cursor.getCount());
         while (cursor.moveToNext())
         {
             int id = cursor.getInt(0);
+            Log.v("database status", "id" + id);
             String lat = cursor.getString(1);
+            Log.v("database status", "lat" + lat);
             String lng = cursor.getString(2);
+            Log.v("database status", "lng" + lng);
             String time = cursor.getString(3);
+            Log.v("database status", "time" + time);
             String addr = cursor.getString(4);
+            Log.v("database status", "addr" + addr);
             String name = cursor.getString(5);
+            Log.v("database status", "name" + name);
             CheckPoint point = new CheckPoint(id, name, lat, lng, time, addr);
             result.add(point);
         }
-
+        db.close();
         return result;
     }
 
@@ -127,13 +134,52 @@ public class DatabaseHelper extends SQLiteOpenHelper {
         Cursor cursor = db.query(MARKER_DATABASE, null, null, null, null, null, null);
         Log.v("database status", "get all markers");
         while (cursor.moveToNext()) {
+            Log.v("database status", "id " + cursor.getString(0));
+            int id = cursor.getInt(0);
             String lat = cursor.getString(1);
+            Log.v("database status", "lat" + lat);
             String lng = cursor.getString(2);
+            Log.v("database status", "lng" + lng);
             String time = cursor.getString(3);
+            Log.v("database status", "time" + time);
             String name = cursor.getString(4);
-            CheckPoint marker = new CheckPoint(name, lat, lng, time);
+            Log.v("database status", "name" + name);
+            CheckPoint marker = new CheckPoint(id, name, lat, lng, time);
             result.add(marker);
         }
+        db.close();
         return result;
+    }
+
+    public void updatePoints(String type, String name, String lat, String lng) {
+        SQLiteDatabase db = this.getWritableDatabase();
+        String dbName = null;
+        String ID = null;
+        if ("checkins".equals(type)) {
+            dbName = DATABASE;
+            ID = "_id";
+        }
+
+        else {
+            dbName = MARKER_DATABASE;
+            ID = "markerID";
+        }
+
+
+        String updateDB = "UPDATE " + MARKER_DATABASE + " SET " + KEY_LAT + "='" + lat + "', " + KEY_LNG + "='" + lng + "' WHERE " +  KEY_NAME +"='" + name + "'";
+        db.execSQL(updateDB);
+        db.close();
+    }
+
+    public String findTime(String name) {
+        SQLiteDatabase db = this.getReadableDatabase();
+        Cursor cursor = db.query(DATABASE, new String[] {KEY_TIME}, KEY_NAME + " = ?", new String[] {name}, null, null, null);
+        if (cursor.moveToFirst()) return cursor.getString(0);
+        else {
+            cursor = db.query(MARKER_DATABASE, new String[] {KEY_TIME}, KEY_NAME + " = ?", new String[] {name}, null, null, null);
+            if (cursor.moveToFirst()) return cursor.getString(0);
+        }
+        db.close();
+        return null;
     }
 }

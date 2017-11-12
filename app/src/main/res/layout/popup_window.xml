@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:orientation="vertical" android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:gravity="center">
+
+    <TextView
+        android:id="@+id/tv_popup"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Near check-in point:"
+        android:textSize="19dp"
+        android:layout_marginLeft="@dimen/dialog_margin"
+        android:layout_marginRight="@dimen/dialog_margin"/>
+
+    <TextView
+        android:id="@+id/tv_poptime"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Last check-in: "
+        android:layout_marginLeft="@dimen/dialog_margin"
+        android:layout_marginRight="@dimen/dialog_margin"
+        android:textSize="19dp"
+        />
+
+    <Button
+        android:id="@+id/button_popup"
+        android:layout_width="70dp"
+        android:layout_height="40dp"
+        android:text="Close" />
+
+</LinearLayout>

@@ -39,7 +39,8 @@ public class CheckPoint implements Serializable{
         this.address = address;
     }
 
-    public CheckPoint(String name, String lat, String lng, String time) {
+    public CheckPoint(int id, String name, String lat, String lng, String time) {
+        this._id = id;
         this.name = name;
         this.lat = lat;
         this.lng = lng;
