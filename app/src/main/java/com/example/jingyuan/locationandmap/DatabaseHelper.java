@@ -11,6 +11,7 @@ import android.widget.ArrayAdapter;
 import com.google.android.gms.maps.model.LatLng;
 
 import java.util.ArrayList;
+import java.util.Hashtable;
 
 /**
  * Created by jingyuan on 11/5/17.
@@ -27,6 +28,7 @@ public class DatabaseHelper extends SQLiteOpenHelper {
     private static final String KEY_ADDRESS = "address";
     private static final String KEY_CHECKINID = "checkinID";
     private static final String DELETE_QUERY = "DELETE FROM "+ DATABASE +" WHERE _id=";
+    private static final String DELETE_QUERY_ASSO = "DELETE FROM "+ ASSOCIATE_DATABASE +" WHERE assID=";
 
     public DatabaseHelper(Context context) {
         super(context, DATABASE, null, 1);
@@ -69,13 +71,17 @@ public class DatabaseHelper extends SQLiteOpenHelper {
 
     public void deletePoint(int id) {
         SQLiteDatabase db = this.getWritableDatabase();
-        db.execSQL(DELETE_QUERY + id);
+        if (id < 100)
+            db.execSQL(DELETE_QUERY + id);
+        else
+            db.execSQL(DELETE_QUERY_ASSO + (id - 100));
         db.close();
     }
 
     public ArrayList<CheckPoint> getAllPoints() {
         SQLiteDatabase db = this.getReadableDatabase();
         ArrayList<CheckPoint> result = new ArrayList<>();
+        Hashtable<String, String> id_nameaddr = new Hashtable<>();
 
         Cursor cursor = db.query(DATABASE,null,null,null,null,null,null);
         Log.v("database status", "get all points" + cursor.getCount());
@@ -93,24 +99,40 @@ public class DatabaseHelper extends SQLiteOpenHelper {
             Log.v("database status", "addr" + addr);
             String name = cursor.getString(5);
             Log.v("database status", "name" + name);
+            id_nameaddr.put(String.valueOf(id), name + ":" + addr);
             CheckPoint point = new CheckPoint(id, name, lat, lng, time, addr);
+            result.add(point);
+        }
+        cursor = db.query(ASSOCIATE_DATABASE,null,null,null,null,null,null);
+        while (cursor.moveToNext())
+        {
+            int id = cursor.getInt(0);
+            Log.v("database status", "id" + id);
+            String checkinID = cursor.getString(1);
+            Log.v("database status", "checkin id" + checkinID);
+            String lat = cursor.getString(2);
+            Log.v("database status", "lat" + lat);
+            String lng = cursor.getString(3);
+            Log.v("database status", "lng" + lng);
+            String time = cursor.getString(4);
+            Log.v("database status", "time" + time);
+            String[] nameaddr = id_nameaddr.get(checkinID).split(":");
+            CheckPoint point = new CheckPoint(id + 100, nameaddr[0], lat, lng, time, nameaddr[1]);
             result.add(point);
         }
         db.close();
         return result;
     }
 
-    public void addAssociate(CheckPoint cp, ArrayList<CheckPoint> checkPoints) {
+    public void addAssociate(CheckPoint cp, CheckPoint checkPoint) {
         Log.v("database status", "add associate");
-        String ids = "";
-        for (CheckPoint i : checkPoints)
-            ids = ids + i.getId() + ",";
+        int id = checkPoint.getId();
         SQLiteDatabase db = this.getWritableDatabase();
         ContentValues values = new ContentValues();
         values.put(KEY_LAT, cp.getLat());
         values.put(KEY_LNG, cp.getLng());
         values.put(KEY_TIME, cp.getTime());
-        values.put(KEY_CHECKINID, ids);
+        values.put(KEY_CHECKINID, id);
         db.insert(ASSOCIATE_DATABASE, null, values);
         db.close();
     }
@@ -165,8 +187,7 @@ public class DatabaseHelper extends SQLiteOpenHelper {
             ID = "markerID";
         }
 
-
-        String updateDB = "UPDATE " + MARKER_DATABASE + " SET " + KEY_LAT + "='" + lat + "', " + KEY_LNG + "='" + lng + "' WHERE " +  KEY_NAME +"='" + name + "'";
+        String updateDB = "UPDATE " + dbName + " SET " + KEY_LAT + "='" + lat + "', " + KEY_LNG + "='" + lng + "' WHERE " +  KEY_NAME +"='" + name + "'";
         db.execSQL(updateDB);
         db.close();
     }

@@ -1,8 +1,10 @@
 package com.example.jingyuan.locationandmap;
 
 import android.Manifest;
+import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
+import android.content.IntentFilter;
 import android.content.pm.PackageManager;
 import android.database.sqlite.SQLiteDatabase;
 import android.database.sqlite.SQLiteOpenHelper;
@@ -12,6 +14,7 @@ import android.location.Location;
 import android.location.LocationListener;
 import android.location.LocationManager;
 import android.location.LocationProvider;
+import android.os.Looper;
 import android.provider.ContactsContract;
 import android.provider.Settings;
 import android.support.annotation.NonNull;
@@ -23,8 +26,11 @@ import android.util.Log;
 import android.view.View;
 import android.widget.AdapterView;
 import android.widget.Button;
+import android.widget.CompoundButton;
 import android.widget.EditText;
 import android.widget.ListView;
+import android.widget.Spinner;
+import android.widget.Switch;
 import android.widget.TextView;
 import android.widget.Toast;
 
@@ -34,27 +40,53 @@ import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.locks.Condition;
+import java.util.concurrent.locks.Lock;
+import java.util.concurrent.locks.ReentrantLock;
 
 public class MainActivity extends AppCompatActivity {
 
     private final int LOC_PERMISSION_REQUEST_CODE = 1;
+    private final String UPDATE_CHECKIN_FROM_SERVICE = "autoCI";
+    private final int MODE_AUTO = 10;
+    private final int MODE_GPS = 11;
+    private final int MODE_NETWORK = 12;
     private TextView locationTV;
     private TextView addressTV;
     private LocationManager locationManager;
     private Button checkIn;
     private Button mapBtn;
+    private Switch autoCheckin;
     private LocationListener locationListener;
     private ListView listView;
     private EditText nameET;
-    private List<CheckPoint> list;
+    private static List<CheckPoint> list;
     private mAdapter adapter;
     private DatabaseHelper dbHelper;
+    private AutocheckReceiver receiver;
+    private final Lock lock = new ReentrantLock();
+    private int locMode = MODE_AUTO;
+    private Spinner spinner;
+    private long currT;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
         initialization();
+
+        // Get thread ID
+//        Log.v("thread status", "UI thread" + android.os.Process.getThreadPriority(android.os.Process.myTid()));
+        if (Looper.getMainLooper().getThread() == Thread.currentThread()) {
+            Log.v("thread status", "UI thread" + android.os.Process.getThreadPriority(android.os.Process.myTid()));
+        }
+
+        // Listening broadcast
+        IntentFilter filter = new IntentFilter();
+        receiver = new AutocheckReceiver();
+        filter.addAction(UPDATE_CHECKIN_FROM_SERVICE);
+        registerReceiver(receiver, filter);
         Log.v("activity status", "on create");
 
     }
@@ -76,6 +108,7 @@ public class MainActivity extends AppCompatActivity {
             // Remove listener
             locationManager.removeUpdates(locationListener);
         }
+        unregisterReceiver(receiver);
     }
 
     private void initialization() {
@@ -86,12 +119,13 @@ public class MainActivity extends AppCompatActivity {
         nameET = (EditText) findViewById(R.id.et_name);
         listView = (ListView) findViewById(R.id.lv_checkins);
         mapBtn = (Button) findViewById(R.id.button_map);
+        autoCheckin = (Switch) findViewById(R.id.switch_autocheck);
+        spinner = (Spinner) findViewById(R.id.spinner_mode);
 
         list = new ArrayList<>();
         dbHelper = new DatabaseHelper(this);
         checkIn = (Button) findViewById(R.id.button_checkin);
         list.addAll(dbHelper.getAllPoints());
-//        list.add(new CheckPoint("30", "120", "12:12:12", "400 Plymouth Place, Somerset, New Jersey 08873"));
 
         adapter = new mAdapter(this, list);
         listView.setAdapter(adapter);
@@ -102,7 +136,11 @@ public class MainActivity extends AppCompatActivity {
             @Override
             public void onLocationChanged(Location location) {
                 Log.v("location status", "on location changed");
+                currT = System.currentTimeMillis();
+                Log.v("delay status", "location changed" + currT);
                 showLocation(location);
+                // Get thread ID
+                Log.v("thread status", "locationListener thread " + android.os.Process.getThreadPriority(android.os.Process.myTid()));
             }
 
             @Override
@@ -139,13 +177,31 @@ public class MainActivity extends AppCompatActivity {
                 if (neighbors == null || neighbors.size() == 0) { // if no check in point which dist < 30m to cp
                     // add new check in point to database, refresh the list
                     dbHelper.addPoint(cp);
-                    list.clear();
-                    list.addAll(dbHelper.getAllPoints());
                     adapter.notifyDataSetChanged();
                 } else { // if there is a check in point near cp (dist < 30m)
-                    dbHelper.addAssociate(cp, neighbors);
+                    dbHelper.addAssociate(cp, neighbors.get(0));
                     Toast.makeText(MainActivity.this, "Associated to other points", Toast.LENGTH_SHORT).show();
                 }
+                list.clear();
+                list.addAll(dbHelper.getAllPoints());
+                adapter.notifyDataSetChanged();
+            }
+        });
+
+        spinner.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
+            @Override
+            public void onItemSelected(AdapterView<?> adapterView, View view, int i, long l) {
+                Log.v("spinner status", "Selected " + i);
+                if (i == 0)
+                    locMode = MODE_AUTO;
+                else if (i == 1)
+                    locMode = MODE_GPS;
+                else
+                    locMode = MODE_NETWORK;
+            }
+
+            @Override
+            public void onNothingSelected(AdapterView<?> adapterView) {
 
             }
         });
@@ -162,7 +218,7 @@ public class MainActivity extends AppCompatActivity {
             }
         });
 
-        // Get permission
+        // Get permission and update location
         if ( (ContextCompat.checkSelfPermission( this, android.Manifest.permission.ACCESS_COARSE_LOCATION ) != PackageManager.PERMISSION_GRANTED) || (
                 ContextCompat.checkSelfPermission( this, Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED) ) {
 
@@ -175,6 +231,7 @@ public class MainActivity extends AppCompatActivity {
             updateLocation();
         }
 
+        // start maps activity
         mapBtn.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View view) {
@@ -182,10 +239,21 @@ public class MainActivity extends AppCompatActivity {
                 startActivity(intent);
             }
         });
+
+        autoCheckin.setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() {
+            @Override
+            public void onCheckedChanged(CompoundButton compoundButton, boolean isChecked) {
+                Intent intent = new Intent(MainActivity.this, AutocheckService.class);
+                if (isChecked)
+                    startService(intent);
+                else
+                    stopService(intent);
+            }
+        });
     }
 
     // return the position of check in point which dist < 30m
-    private ArrayList<CheckPoint> compareDist(CheckPoint cp) {
+    protected static ArrayList<CheckPoint> compareDist(CheckPoint cp) {
         ArrayList<CheckPoint> neighbors = new ArrayList<>();
         for (int i = 0; i < list.size(); i++)
             if (distance(Double.valueOf(cp.getLat()), Double.valueOf(cp.getLng()), Double.valueOf(list.get(i).getLat()), Double.valueOf(list.get(i).getLng())) < 30)
@@ -215,6 +283,10 @@ public class MainActivity extends AppCompatActivity {
         // Get coordinates
         double myLat = location.getLatitude();
         double myLng = location.getLongitude();
+        float accuracy = location.getAccuracy();
+        Log.v("test delay", "time used to update loc: " + (System.currentTimeMillis() - currT)/1000000.0);
+        Log.v("test accuracy", "location accuracy: " + accuracy);
+
         // transfer to String
         String lat = String.format("%.6f", myLat);
         String lng = String.format("%.6f", myLng);
@@ -232,17 +304,25 @@ public class MainActivity extends AppCompatActivity {
             e.printStackTrace();
         }
 
-        if (addresses!= null && addresses.size() != 0) {
-            Log.v("location status", "show address");
-            Address address = addresses.get(0);
-            StringBuilder sb = new StringBuilder();
-            if (address.getSubThoroughfare() != null) sb.append(address.getSubThoroughfare()).append(", ");
-            if (address.getThoroughfare() != null) sb.append(address.getThoroughfare()).append(", ");
-            if (address.getLocality() != null) sb.append(address.getLocality()).append(", ");
-            if (address.getAdminArea() != null) sb.append(address.getAdminArea()).append(" ");
-            if (address.getPostalCode() != null) sb.append(address.getPostalCode());
-            addressTV.setText("Current Address: " + sb.toString());
-
+        // Lock the location update process to solve race condition
+        if (lock.tryLock()) {
+            try {
+                // Show coordinates
+                locationTV.setText("Current Location: (" + lat + "," + lng + ")");
+                if (addresses!= null && addresses.size() != 0) {
+                    Log.v("location status", "show address");
+                    Address address = addresses.get(0);
+                    StringBuilder sb = new StringBuilder();
+                    if (address.getSubThoroughfare() != null) sb.append(address.getSubThoroughfare()).append(", ");
+                    if (address.getThoroughfare() != null) sb.append(address.getThoroughfare()).append(", ");
+                    if (address.getLocality() != null) sb.append(address.getLocality()).append(", ");
+                    if (address.getAdminArea() != null) sb.append(address.getAdminArea()).append(" ");
+                    if (address.getPostalCode() != null) sb.append(address.getPostalCode());
+                    addressTV.setText("Current Address: " + sb.toString());
+                }
+            } finally {
+                lock.unlock();
+            }
         }
     }
 
@@ -253,27 +333,32 @@ public class MainActivity extends AppCompatActivity {
 
             if (locationManager.isProviderEnabled(LocationManager.NETWORK_PROVIDER) || locationManager.isProviderEnabled(LocationManager.GPS_PROVIDER)) {
                 String lp = LocationManager.GPS_PROVIDER;
-                Location loc = locationManager.getLastKnownLocation(LocationManager.GPS_PROVIDER);
+                Location loc = null;
+                if (locMode != MODE_NETWORK)
+                    loc = locationManager.getLastKnownLocation(LocationManager.GPS_PROVIDER);
                 // fall back to network if GPS is not available
                 if (loc == null) {
-                    loc = locationManager.getLastKnownLocation(LocationManager.NETWORK_PROVIDER);
-                    lp = LocationManager.NETWORK_PROVIDER;
+                    if (locMode == MODE_GPS) {
+                        Toast.makeText(this, "Please open GPS services", Toast.LENGTH_SHORT).show();
+                        Intent i = new Intent();
+                        i.setAction(Settings.ACTION_LOCATION_SOURCE_SETTINGS);
+                        startActivity(i);
+                    } else {
+                        Log.v("location status", "GPS not available!");
+                        loc = locationManager.getLastKnownLocation(LocationManager.NETWORK_PROVIDER);
+                        lp = LocationManager.NETWORK_PROVIDER;
+                    }
                 }
                 if (loc != null) {
                     showLocation(loc);
                 }
-                locationManager.requestLocationUpdates(LocationManager.GPS_PROVIDER, 300000, 100, locationListener);
-//                else {
-//                    locationManager.requestLocationUpdates(lp, 3000, 1, locationListener);
-//                    showLocation(loc);
-//                }
-
-            } else {
-                Toast.makeText(this, "Please open GPS services", Toast.LENGTH_SHORT).show();
-                Intent i = new Intent();
-                i.setAction(Settings.ACTION_LOCATION_SOURCE_SETTINGS);
-                startActivity(i);
-            }
+                locationManager.requestLocationUpdates(LocationManager.GPS_PROVIDER, 3000, 1, locationListener);
+                } else {
+                    Toast.makeText(this, "Please open GPS services", Toast.LENGTH_SHORT).show();
+                    Intent i = new Intent();
+                    i.setAction(Settings.ACTION_LOCATION_SOURCE_SETTINGS);
+                    startActivity(i);
+                }
 
         } else {
             Toast.makeText(this, "Permission Denied!", Toast.LENGTH_SHORT);
@@ -295,5 +380,19 @@ public class MainActivity extends AppCompatActivity {
         d = 2 * R * Math.asin(Math.sqrt(sa2 * sa2 + Math.cos(lat1)
                 * Math.cos(lat2) * sb2 * sb2));
         return d;
+    }
+
+    private class AutocheckReceiver extends BroadcastReceiver {
+
+        @Override
+        public void onReceive(Context context, Intent intent) {
+            Log.v("service status", "received broadcast");
+            String action = intent.getAction();
+            if (action.equals(UPDATE_CHECKIN_FROM_SERVICE)) {
+                list.clear();
+                list.addAll(dbHelper.getAllPoints());
+                adapter.notifyDataSetChanged();
+            }
+        }
     }
 }

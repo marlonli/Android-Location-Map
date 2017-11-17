@@ -311,12 +311,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                             .target(myLocation).zoom(16).build();
                     mMap.animateCamera(CameraUpdateFactory.newCameraPosition(cameraPosition));
                 }
-                locationManager.requestLocationUpdates(lp, 2000, 1, locationListener);
-//                else {
-//                    locationManager.requestLocationUpdates(lp, 3000, 1, locationListener);
-//                    showLocation(loc);
-//                }
-
+                locationManager.requestLocationUpdates(lp, 300000, 1, locationListener);
             } else {
                 Toast.makeText(this, "Please open GPS services", Toast.LENGTH_SHORT).show();
                 Intent i = new Intent();

@@ -33,7 +33,12 @@
 
         <activity
             android:name=".MapsActivity"
-            android:label="@string/title_activity_maps"></activity>
+            android:label="@string/title_activity_maps" />
+
+        <service
+            android:name=".AutocheckService"
+            android:enabled="true"
+            android:exported="false"></service>
     </application>
 
 </manifest>

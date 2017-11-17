@@ -44,22 +44,36 @@ public class mAdapter extends BaseAdapter {
 
     @Override
     public View getView(int i, View view, ViewGroup viewGroup) {
+        ViewHolder mHolder = null;
         if (inflater == null)
             inflater = (LayoutInflater) activity.getSystemService(Context.LAYOUT_INFLATER_SERVICE);
-        if (view == null)
+        if (view == null) {
             view = inflater.inflate(R.layout.listitem, null);
 
-        TextView coordination = (TextView) view.findViewById(R.id.lv_location);
-        TextView time = (TextView) view.findViewById(R.id.lv_time);
-        TextView addr = (TextView) view.findViewById(R.id.lv_address);
-        TextView name = (TextView) view.findViewById(R.id.lv_name);
+            mHolder = new ViewHolder();
+            mHolder.ptname = (TextView) view.findViewById(R.id.lv_name);
+            mHolder.addr = (TextView) view.findViewById(R.id.lv_address);
+            mHolder.location = (TextView) view.findViewById(R.id.lv_location);
+            mHolder.time = (TextView) view.findViewById(R.id.lv_time);
+            view.setTag(mHolder);
+        } else
+            mHolder = (ViewHolder) view.getTag();
+
+
         final CheckPoint listitem = list.get(i);
 
-        coordination.setText(listitem.getLat() + ", " + listitem.getLng());
-        time.setText(listitem.getTime());
-        addr.setText(listitem.getAddress());
-        name.setText(listitem.getName());
+        mHolder.location.setText(listitem.getLat() + ", " + listitem.getLng());
+        mHolder.time.setText(listitem.getTime());
+        mHolder.addr.setText(listitem.getAddress());
+        mHolder.ptname.setText(listitem.getName());
 
         return view;
+    }
+
+    final class ViewHolder {
+        public TextView ptname;
+        public TextView time;
+        public TextView addr;
+        public TextView location;
     }
 }

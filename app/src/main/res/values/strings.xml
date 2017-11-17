@@ -1,4 +1,9 @@
 <resources>
     <string name="app_name">Location and Map</string>
     <string name="title_activity_maps">Map</string>
+    <string-array name="spinner_mode">
+        <item>Auto</item>
+        <item>GPS</item>
+        <item>Network</item>
+    </string-array>
 </resources>
