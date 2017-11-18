@@ -143,7 +143,7 @@ public class AutocheckService extends Service {
 
             if (locationManager.isProviderEnabled(LocationManager.GPS_PROVIDER)) {
                 Log.v("service status", "GPS provider");
-                locationManager.requestLocationUpdates(LocationManager.GPS_PROVIDER, 3000, 100, locationListener); // update every 5min or 100m
+                locationManager.requestLocationUpdates(LocationManager.GPS_PROVIDER, 300000, 100, locationListener); // update every 5min or 100m
             }
             else if (locationManager.isProviderEnabled(LocationManager.NETWORK_PROVIDER)) {
                 Log.v("service status", "Network provider");
@@ -151,16 +151,12 @@ public class AutocheckService extends Service {
             }
 
             else {
-//                Toast.makeText(this, "Please open GPS services", Toast.LENGTH_SHORT).show();
                 Intent i = new Intent();
                 i.setAction(Settings.ACTION_LOCATION_SOURCE_SETTINGS);
                 startActivity(i);
             }
 
         }
-//        else {
-//            Toast.makeText(this, "Permission Denied!", Toast.LENGTH_SHORT);
-//        }
     }
 
     @Override

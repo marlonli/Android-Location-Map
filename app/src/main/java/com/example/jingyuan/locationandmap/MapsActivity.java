@@ -56,6 +56,10 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
     private ArrayList<CheckPoint> list_markers;
     private HashSet<String> popups;
     private PopupWindow popup;
+    private final int MODE_AUTO = 10;
+    private final int MODE_GPS = 11;
+    private final int MODE_NETWORK = 12;
+    private int locMode = MODE_AUTO;
 
 
     @Override
@@ -63,9 +67,13 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_maps);
         // Obtain the SupportMapFragment and get notified when the map is ready to be used.
+        Intent intent = getIntent();
+        locMode = intent.getIntExtra("mode", MODE_AUTO);
         SupportMapFragment mapFragment = (SupportMapFragment) getSupportFragmentManager()
                 .findFragmentById(R.id.map);
         mapFragment.getMapAsync(this);
+
+
 
         locationManager = (LocationManager) getSystemService(Context.LOCATION_SERVICE);
         dbHelper = new DatabaseHelper(this);
@@ -294,11 +302,13 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                 (ContextCompat.checkSelfPermission( this, android.Manifest.permission.ACCESS_FINE_LOCATION ) == PackageManager.PERMISSION_GRANTED)) {
 
             mMap.setMyLocationEnabled(true); // Enable my location
-            if (locationManager.isProviderEnabled(LocationManager.NETWORK_PROVIDER) || locationManager.isProviderEnabled(LocationManager.GPS_PROVIDER)) {
+            if ( locationManager.isProviderEnabled(LocationManager.NETWORK_PROVIDER) || locationManager.isProviderEnabled(LocationManager.GPS_PROVIDER)) {
                 String lp = LocationManager.GPS_PROVIDER;
-                Location loc = locationManager.getLastKnownLocation(LocationManager.GPS_PROVIDER);
+                Location loc = null;
+                if (locMode != MODE_NETWORK)
+                    loc = locationManager.getLastKnownLocation(LocationManager.GPS_PROVIDER);
                 // fall back to network if GPS is not available
-                if (loc == null) {
+                if (locMode != MODE_GPS && loc == null) {
                     loc = locationManager.getLastKnownLocation(LocationManager.NETWORK_PROVIDER);
                     lp = LocationManager.NETWORK_PROVIDER;
                 }
